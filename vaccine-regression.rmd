@@ -1,0 +1,168 @@
+---
+title: "Covid vaccine regression"
+author: ""
+date: "18/08/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T)
+```
+
+## Regression problem
+
+- We will run regression and other related models for Covid-19 vaccination data
+
+## Libiraries
+
+- We will use the following packages
+
+```{r}
+library(tidyverse)
+library(caret)
+library(glmnet)
+```
+
+## Load data
+
+We will use the following data. It is a combined dataset from three data sources we have been using. The code for processing is available at `data_prep/data_preparation.R`.
+
+```{r}
+data_vac <- read_csv("data/vaccine-data.csv.gz") 
+```
+
+
+## Check data
+
+Let's have a cursory look at the data, especially check the distribution of the output variable `Series_Complete_Pop_Pct` Do we need conversion?
+
+### `head()`
+
+```{r}
+
+```
+
+### Check the distribution of the output
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+
+## Decide the variable to include as input
+
+- There are 47 variables what are possible predictors? Especially:
+  - trump_pct
+  - demography: TotalPop, Men, Women, Hispanic, White, Black, Native, Asian, Pacific, VotingAgeCitizen, Income, IncomePerCap, Poverty, ChildPoverty, Professional, Service, Office, Construction, Production, Drive, Carpool, Transit, Walk, OtherTransp, WorkAtHome, MeanCommute, Employed, PrivateWork, PublicWork, SelfEmployed, FamilyWork, Unemployment
+- What do you think should be included as the inputs?
+
+
+```{r}
+
+```
+
+## Data preparation
+
+Here we need to prepare the data, in particular:
+
+1. Train-test split
+2. Data preprocessing
+
+Using `caret` (or something else if you like), prepare two datasets of pre-processed train/test data.
+
+## Train-test split
+
+```{r}
+
+```
+
+## Preprocess
+
+```{r}
+
+```
+
+
+## Analysis
+
+### Linear regression
+
+- Run linear regression 
+- Evaluate the model
+
+```{r}
+
+```
+```{r}
+
+```
+
+### Additional movel evaluations
+
+Using the linear regression model as the baseline we attempt two things:
+
+1. Is it possible to improve the prediction using more flexible models?
+  - KNN-regression
+  - Or regression model variant of models covered in classificaiton section. 
+    - For example:
+      - svm: svmPoly, svmRadial works both regression and classification (svmPoly may take quite long time as the number of tuning paramters are many.)
+      - trees: rf
+      
+
+
+```{r}
+
+```
+
+### SVM with Radial Kernel
+
+```{r}
+
+```
+
+
+## LASSO and ridge regression
+
+- Now, let's run LASSO and/or Ridge regression. 
+- What do you find? 
+  - Shrinkage of the coefficients
+
+### LASSO Outcome
+
+```{r}
+
+```
+
+#### Plot with `plot_glmnet`
+
+Shrinkage plot of `glmnet` is not informative as it won't show the variable name. Instead you can use `plot_glmnet` in `plotmo` package.
+
+```{r}
+
+```
+
+
+
+### Ridge regression outcome
+
+```{r}
+
+```
+
+#### Plot with `plot_glmnet`
+
+```{r}
+
+```
+
+### Compare coefs: lm, lasso/ridge
+
+Compare the cefficients across the models. What do you find?
+
+```{r}
+
+```
