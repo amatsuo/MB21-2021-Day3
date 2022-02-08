@@ -28,6 +28,10 @@ data_pres <- data_pres %>%
 data_vac_latest <- data_vac %>% group_by(fips) %>%
   filter(Date == max(Date))
 
+
+data_vac_quarterly <- data_vac %>% group_by(fips) %>%
+  filter(Date %in% as.Date(c("2021-03-01", "2021-06-01","2021-09-01", "2021-12-01")))
+
 data_trump <- data_pres %>%
   filter(candidate == "Donald Trump") %>%
   mutate(pct_trump = votes / total_votes)
@@ -42,4 +46,11 @@ data_merged <-
 write_csv(data_merged, "data/vaccine-data.csv.gz")
 
 
+data_merged_quarterly <- 
+  data_vac_quarterly %>%
+  inner_join(data_trump %>% select(state, pct_trump, fips), by = "fips") %>%
+  inner_join(data_demo %>% select(!c(State, County)) %>%
+               select(!ends_with("Err")), by = "fips")
 
+
+write_csv(data_merged_quarterly, "data/vaccine-data-quarterly.csv.gz")
