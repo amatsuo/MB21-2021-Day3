@@ -4,7 +4,7 @@
 
 library(tidyverse)
 
-data_vac <- read_csv("../MB21-2021-Day1/tmp/COVID-19_Vaccinations_in_the_United_States_County.csv.tar.gz")
+data_vac <- vroom::vroom("../../data/COVID-19_Vaccinations_in_the_United_States_County.csv.tar.gz")
 data_demo <- read_csv("../MB21-2021-Day2/data/acs2017_county_data.csv")
 data_pres <- read_csv("../MB21-2021-Day2/data/pres20results.csv")
 
