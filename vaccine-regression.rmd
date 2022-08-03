@@ -1,7 +1,7 @@
 ---
 title: "Covid vaccine regression"
 author: ""
-date: "18/08/2021"
+date: "03/08/2022"
 output: html_document
 ---
 
@@ -34,7 +34,7 @@ data_vac <- read_csv("data/vaccine-data.csv.gz")
 
 ## Check data
 
-Let's have a cursory look at the data, especially check the distribution of the output variable `Series_Complete_Pop_Pct` Do we need conversion?
+Let's have a cursory look at the data, especially check the distribution of the output variable `Booster_Doses_18Plus_Vax_Pct` Do we need conversion?
 
 ### `head()`
 
