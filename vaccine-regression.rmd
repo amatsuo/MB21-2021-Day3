@@ -29,6 +29,8 @@ We will use the following data. It is a combined dataset from three data sources
 
 ```{r}
 data_vac <- read_csv("data/vaccine-data.csv.gz") 
+
+data_vac
 ```
 
 
@@ -40,16 +42,25 @@ Let's have a cursory look at the data, especially check the distribution of the 
 
 ```{r}
 
+
+
 ```
 
 ### Check the distribution of the output
 
 ```{r}
-
+data_vac %>% 
+  pull(Booster_Doses_18Plus_Vax_Pct) %>% summary()
 ```
 
 ```{r}
+data_vac %>%
+  ggplot(aes(Booster_Doses_18Plus_Vax_Pct)) + geom_histogram()
+```
 
+```{r}
+data_vac %>%
+  ggplot(aes(Booster_Doses_18Plus_Vax_Pct)) + geom_density()
 ```
 
 
@@ -60,9 +71,17 @@ Let's have a cursory look at the data, especially check the distribution of the 
   - demography: TotalPop, Men, Women, Hispanic, White, Black, Native, Asian, Pacific, VotingAgeCitizen, Income, IncomePerCap, Poverty, ChildPoverty, Professional, Service, Office, Construction, Production, Drive, Carpool, Transit, Walk, OtherTransp, WorkAtHome, MeanCommute, Employed, PrivateWork, PublicWork, SelfEmployed, FamilyWork, Unemployment
 - What do you think should be included as the inputs?
 
+```{r}
+# library(stringi)
+# "trump_pct, TotalPop, Hispanic, White, Black, Income, IncomePerCap, Poverty, ChildPoverty, WorkAtHome, Unemployment" %>% 
+#   stri_replace_all(",\\s+", " ")
+
+```
 
 ```{r}
-
+data_use <- data_vac %>% 
+  select(Booster_Doses_18Plus_Vax_Pct, pct_trump, TotalPop, Hispanic, White, Black, Income, IncomePerCap, Poverty, ChildPoverty, WorkAtHome, Unemployment) %>%
+  drop_na()
 ```
 
 ## Data preparation
@@ -77,12 +96,26 @@ Using `caret` (or something else if you like), prepare two datasets of pre-proce
 ## Train-test split
 
 ```{r}
+set.seed(20230208)
+train_idx <- createDataPartition(data_use$Booster_Doses_18Plus_Vax_Pct, 
+                    p = .7, list = F)
+
+df_train <- data_use %>%
+  slice(train_idx)
+df_test <- data_use %>%
+  slice(-train_idx)
 
 ```
 
 ## Preprocess
 
 ```{r}
+prep <- df_train %>%
+  select(-Booster_Doses_18Plus_Vax_Pct) %>%
+  preProcess(c("center", "scale"))
+
+df_train_prepped <- predict(prep, df_train)
+df_test_prepped <- predict(prep, df_test)
 
 ```
 
@@ -95,10 +128,21 @@ Using `caret` (or something else if you like), prepare two datasets of pre-proce
 - Evaluate the model
 
 ```{r}
-
+mod_lm <- lm(Booster_Doses_18Plus_Vax_Pct ~ ., data = df_train_prepped)
+summary(mod_lm)
 ```
 ```{r}
+pred_lm_train <- predict(mod_lm, newdata = df_train_prepped)
+pred_lm_test <- predict(mod_lm, newdata = df_test_prepped)
 
+rmse <- function(y, pred) {
+  output <- mean((y - pred)^2) %>% sqrt()
+  return(output)
+}
+
+
+rmse(df_train_prepped$Booster_Doses_18Plus_Vax_Pct, pred_lm_train)
+rmse(df_test_prepped$Booster_Doses_18Plus_Vax_Pct, pred_lm_test)
 ```
 
 ### Additional movel evaluations
@@ -115,12 +159,25 @@ Using the linear regression model as the baseline we attempt two things:
 
 
 ```{r}
+control <- trainControl(method = "repeatedcv", repeats = 3, number = 5)
+mod_knn <- train(Booster_Doses_18Plus_Vax_Pct ~ ., 
+                 data = df_train_prepped, 
+                 method = "knn", 
+                 trControl = control, 
+                 tuneGrid = expand.grid(k = c(2:10, 15, 20, 30, 50)))
 
+mod_knn
 ```
 
 ### SVM with Radial Kernel
 
 ```{r}
+pred_knn_train <- predict(mod_knn, newdata = df_train_prepped)
+pred_knn_test <- predict(mod_knn, newdata = df_test_prepped)
+
+rmse(df_train_prepped$Booster_Doses_18Plus_Vax_Pct, pred_knn_train)
+rmse(df_test_prepped$Booster_Doses_18Plus_Vax_Pct, pred_knn_test)
+
 
 ```
 
@@ -132,37 +189,97 @@ Using the linear regression model as the baseline we attempt two things:
   - Shrinkage of the coefficients
 
 ### LASSO Outcome
-
 ```{r}
+mat_train_x <- df_train_prepped %>% 
+  select(-Booster_Doses_18Plus_Vax_Pct) %>% as.matrix()
+mat_test_x <- df_test_prepped %>% 
+  select(-Booster_Doses_18Plus_Vax_Pct) %>% as.matrix()
 
 ```
+
+
+```{r}
+mod_lasso <- 
+  cv.glmnet(mat_train_x, df_train_prepped$Booster_Doses_18Plus_Vax_Pct, 
+          alpha = 1, 
+          type.measure = 'mse',
+          family = "gaussian")
+
+mod_lasso
+coef(mod_lasso)
+plot(mod_lasso)
+plot(mod_lasso$glmnet.fit, xvar = "lambda")
+#summary(mod_lasso$glmnet.fit)
+
+pred_lasso_train <- predict(mod_lasso, newx = mat_train_x)
+rmse(df_train_prepped$Booster_Doses_18Plus_Vax_Pct, pred_lasso_train)
+
+pred_lasso_test <- predict(mod_lasso, newx = mat_test_x)
+rmse(df_test_prepped$Booster_Doses_18Plus_Vax_Pct, pred_lasso_test)
+
+```
+
+
+```{r}
+mod_ridge <- cv.glmnet(mat_train_x, df_train_prepped$Booster_Doses_18Plus_Vax_Pct, 
+          alpha = 0, 
+          type.measure = 'mse',
+          family = "gaussian")
+
+coef(mod_ridge)
+plot(mod_ridge)
+plot(mod_ridge$glmnet.fit, xvar = "lambda")
+#summary(mod_ridge$glmnet.fit)
+
+pred_ridge_train <- predict(mod_ridge, newx = mat_train_x)
+rmse(df_train_prepped$Booster_Doses_18Plus_Vax_Pct, pred_ridge_train)
+
+pred_ridge_test <- predict(mod_ridge, newx = mat_test_x)
+rmse(df_test_prepped$Booster_Doses_18Plus_Vax_Pct, pred_ridge_test)
+
+```
+
+
+### Using other lambda
+```{r}
+pred_lasso_train_min <- predict(mod_lasso, newx = mat_train_x, s = "lambda.min")
+rmse(df_train_prepped$Booster_Doses_18Plus_Vax_Pct, pred_lasso_train_min)
+
+pred_lasso_test_min <- predict(mod_lasso, newx = mat_test_x, s = "lambda.min")
+rmse(df_test_prepped$Booster_Doses_18Plus_Vax_Pct, pred_lasso_test_min)
+
+
+coef(mod_lasso, s = "lambda.min") # see the coef
+```
+
 
 #### Plot with `plot_glmnet`
 
 Shrinkage plot of `glmnet` is not informative as it won't show the variable name. Instead you can use `plot_glmnet` in `plotmo` package.
 
 ```{r}
-
+plotmo::plot_glmnet(mod_lasso$glmnet.fit, xvar = "lambda")
+plotmo::plot_glmnet(mod_ridge$glmnet.fit, xvar = "lambda")
 ```
 
 
 
-### Ridge regression outcome
-
-```{r}
-
-```
-
-#### Plot with `plot_glmnet`
-
-```{r}
-
-```
 
 ### Compare coefs: lm, lasso/ridge
 
-Compare the cefficients across the models. What do you find?
+Compare the coefficients across the models. What do you find?
 
 ```{r}
+list(mod_lm, mod_lasso, mod_ridge) %>%
+  map(~coef(.) %>% as.matrix %>% as.data.frame) %>% bind_cols() %>%
+  rename(lm = 1, lasso = 2, ridge = 3)
+
+list(mod_lm, mod_lasso, mod_ridge) %>%
+  map(~coef(.) %>% as.matrix %>% as.data.frame) %>% bind_cols() %>%
+  rename(lm = 1, lasso = 2, ridge = 3) %>%
+  rownames_to_column(var = "variable") %>% pivot_longer(2:4) %>%
+  filter(variable != "(Intercept)") %>%
+  ggplot(aes(x = value, y = variable, color = name)) + geom_point() +
+  theme_minimal()
 
 ```
